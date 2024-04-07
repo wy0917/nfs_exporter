@@ -20,15 +20,23 @@ func debug(format string, v ...interface{}) {
 	}
 }
 
-func writeToFile(ctx context.Context, mountPoint string, ch chan string) {
+func writeToFile(ctx context.Context, mountPoint string, ch chan string, filename string) {
 	start := time.Now()
-	file, err := os.Create(mountPoint + "/_testfile")
+	filePath := mountPoint + "/" + filename
+	file, err := os.Create(filePath)
 	if err != nil {
 		debug("Failed to create test file at %s: %v", mountPoint, err)
 		ch <- fmt.Sprintf(`nfs_write_success{mount_point="%s"} 0`, mountPoint)
 		return
 	}
-	defer file.Close()
+
+	_, err = file.WriteString(time.Now().String())
+	if err != nil {
+		debug("Failed to write to test file at %s: %v", mountPoint, err)
+		ch <- fmt.Sprintf(`nfs_write_success{mount_point="%s"} 0`, mountPoint)
+		return
+	}
+	file.Close()
 
 	select {
 	case <-ctx.Done():
@@ -40,11 +48,21 @@ func writeToFile(ctx context.Context, mountPoint string, ch chan string) {
 		ch <- fmt.Sprintf(`nfs_write_time_seconds{mount_point="%s"} %f`, mountPoint, duration)
 		ch <- fmt.Sprintf(`nfs_write_success{mount_point="%s"} 1`, mountPoint)
 	}
+
+	// Delete the test file
+	err = os.Remove(filePath)
+	if err != nil {
+		debug("Failed to delete test file at %s: %v", mountPoint, err)
+	}
 }
 
 func main() {
 	var outputPath string
+	var filename string
+	var timeout int
 	flag.StringVar(&outputPath, "o", "", "Output file path")
+	flag.StringVar(&filename, "f", ".testfile", "The name of the test file")
+	flag.IntVar(&timeout, "t", 200, "Timeout in milliseconds")
 	flag.BoolVar(&verbose, "V", false, "Print debug information")
 	flag.Parse()
 
@@ -54,15 +72,12 @@ func main() {
 	var wg sync.WaitGroup
 	for _, line := range lines {
 		fields := strings.Fields(line)
-		if len(fields) > 1 && fields[0] != "Filesystem" {
-			debug("found%d mountpoint %s fstype %s", len(fields), fields[0], fields[1])
-		}
 		if len(fields) > 1 && fields[1] == "nfs" {
 			wg.Add(1)
-			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Millisecond)
 			defer cancel()
 			go func() {
-				writeToFile(ctx, fields[6], ch)
+				writeToFile(ctx, fields[6], ch, filename)
 				wg.Done()
 			}()
 		}
@@ -91,3 +106,4 @@ func main() {
 		os.Exit(1)
 	}
 }
+

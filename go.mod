@@ -1,3 +1,3 @@
-module zcmj.com/nfs_exporter
+module github.com/wy0917/nfs_exporter
 
 go 1.18

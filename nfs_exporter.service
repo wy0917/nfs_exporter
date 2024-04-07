@@ -1,0 +1,5 @@
+[Unit]
+Description=Test NFS mounts
+
+[Service]
+ExecStart=/usr/local/bin/nfs_exporter -o /var/run/prometheus/metrics/nfs_exporter.prom
