@@ -6,59 +6,43 @@ on:
       - '*'
 
 jobs:
-  codeQL:
-    name: "CodeQL"
+  #  codeQL:
+  #    name: "CodeQL"
+  #    runs-on: ubuntu-latest
+  #
+  #    steps:
+  #      - name: Checkout repository
+  #        uses: actions/checkout@v4
+  #
+  #      - name: Initialize CodeQL
+  #        uses: github/codeql-action/init@v3
+  #        with:
+  #          languages: "go"
+  #
+  #      - name: Perform CodeQL Analysis
+  #        uses: github/codeql-action/analyze@v3
+
+  goreleaser:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      -
+        name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
         with:
-          languages: "go"
+          fetch-depth: 0
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-
-  build:
-    strategy:
-      matrix:
-        goos: [linux]
-        goarch: [386, amd64]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
+      -
+        name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: 1.18
 
-      - name: Build
-        run: |
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o nfs_exporter_${{ matrix.goos }}_${{ matrix.goarch }}
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      -
+        name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./nfs_exporter_${{ matrix.goos }}_${{ matrix.goarch }}
-          asset_name: nfs_exporter_${{ matrix.goos }}_${{ matrix.goarch }}
-          asset_content_type: application/octet-stream
