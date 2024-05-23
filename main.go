@@ -72,7 +72,7 @@ func main() {
 	var wg sync.WaitGroup
 	for _, line := range lines {
 		fields := strings.Fields(line)
-		if len(fields) > 1 && fields[1] == "nfs" {
+		if len(fields) > 1 && (fields[1] == "nfs" || fields[1] == "cifs") {
 			wg.Add(1)
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Millisecond)
 			defer cancel()
@@ -106,4 +106,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-
