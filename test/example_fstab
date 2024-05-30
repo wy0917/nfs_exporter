@@ -1,0 +1,2 @@
+/dev/mapper/nfs-data /mnt/nfs-data nfs defaults 0 0
+/dev/sdc1 /mnt/data ext4 defaults 0 0
