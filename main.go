@@ -36,39 +36,36 @@ func debug(format string, v ...interface{}) {
 
 func writeToFile(ctx context.Context, mountPoint string, ch chan string, filename string) {
 	start := time.Now()
-	filePath := mountPoint + string(filepath.ListSeparator) + filename
+	filePath := filepath.Join(mountPoint, filename)
 	file, err := os.Create(filePath)
 	if err != nil {
 		debug("Failed to create test file at %s: %v", mountPoint, err)
 		ch <- fmt.Sprintf(`nfs_write_success{mount_point="%s"} 0`, mountPoint)
 		return
 	}
-	defer file.Close()
-
-	_, err = file.WriteString(time.Now().String())
-	if err != nil {
-		debug("Failed to write to test file at %s: %v", mountPoint, err)
-		ch <- fmt.Sprintf(`nfs_write_success{mount_point="%s"} 0`, mountPoint)
-		return
-	}
 	defer func() {
-		// Delete the test file
-		err = os.Remove(filePath)
-		if err != nil {
+		file.Close()
+		if err := os.Remove(filePath); err != nil {
 			debug("Failed to delete test file at %s: %v", mountPoint, err)
 		}
 	}()
 
+	if _, err = file.WriteString(time.Now().String()); err != nil {
+		debug("Failed to write to test file at %s: %v", mountPoint, err)
+		ch <- fmt.Sprintf(`nfs_write_success{mount_point="%s"} 0`, mountPoint)
+		return
+	}
+
+	success := 1
 	select {
 	case <-ctx.Done():
-		duration := time.Since(start).Seconds()
-		ch <- fmt.Sprintf(`nfs_write_time_seconds{mount_point="%s"} %f`, mountPoint, duration)
-		ch <- fmt.Sprintf(`nfs_write_success{mount_point="%s"} 0`, mountPoint)
+		success = 0
 	default:
-		duration := time.Since(start).Seconds()
-		ch <- fmt.Sprintf(`nfs_write_time_seconds{mount_point="%s"} %f`, mountPoint, duration)
-		ch <- fmt.Sprintf(`nfs_write_success{mount_point="%s"} 1`, mountPoint)
 	}
+
+	duration := time.Since(start).Seconds()
+	ch <- fmt.Sprintf(`nfs_write_time_seconds{mount_point="%s"} %f`, mountPoint, duration)
+	ch <- fmt.Sprintf(`nfs_write_success{mount_point="%s"} %d`, mountPoint, success)
 }
 
 func getMountPoints(fstabPath string) []string {
