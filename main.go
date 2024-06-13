@@ -110,7 +110,7 @@ func main() {
 	mountPoints := getMountPoints("/etc/fstab")
 	mountedPoints := getMountedPoints()
 
-	ch := make(chan string, len(mountPoints)+len(mountedPoints))
+	ch := make(chan string, len(mountPoints)+len(mountedPoints)+1)
 
 	for _, mp := range mountPoints {
 		if !slices.Contains(mountedPoints, mp) {
