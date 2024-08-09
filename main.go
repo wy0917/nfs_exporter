@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -35,8 +36,19 @@ func debug(format string, v ...interface{}) {
 }
 
 func writeToFile(ctx context.Context, mountPoint string, ch chan string, filename string) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Println("Error getting hostname:", err)
+		return
+	}
+	filename = filename + "." + hostname
+
+	re := regexp.MustCompile(`[<>:"/\\|?*]`)
+	sanitized_filename := re.ReplaceAllString(filename, "")
+	sanitized_filename = regexp.MustCompile(`\s+`).ReplaceAllString(sanitized_filename, " ")
+
 	start := time.Now()
-	filePath := filepath.Join(mountPoint, filename)
+	filePath := filepath.Join(mountPoint, sanitized_filename)
 	file, err := os.Create(filePath)
 	if err != nil {
 		debug("Failed to create test file at %s: %v", mountPoint, err)
